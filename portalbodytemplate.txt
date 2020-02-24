@@ -1,0 +1,16 @@
+
+<p>Hello,</p>
+
+<p>A review of your Portal account shows content requiring 
+your attention. Please review the attached document on how to
+complete metadata for items associated with your Portal account, 
+requirements are the same as for your UPlan content. 
+Any items still lacking the appropriate metadata will be made private 
+one month from the date of this email. 
+<br>
+If you have any questions please reach out to the Central GIS group.</p>
+<table style="border:1px solid black;border-collapse:collapse;">
+<tr style="background-color:#ee7725;"><th style="padding:4px;">UPlan Item</th></tr>
+{contentList}
+</table>
+<p>Thank you.</p>

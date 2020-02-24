@@ -29,7 +29,7 @@ for more information.</p>""")
 email_service = {
     'from_address': 'agilvarry@utah.gov',
     'subject': 'Portal Content - Action Required',
-    'bodyTemplateFile': 'bodytemplate.txt',
+    'bodyTemplateFile': 'portalbodytemplate.txt',
     'bodyTemplate': None,
     'signatureFile': 'signature.txt',
     'signature': None,
@@ -231,23 +231,6 @@ def sqlite_data(item, tags):
     except:
         print("SQLite Geodatabase Info Update failed")
         print(item)            
-    
-    
-def hub_data(item, tags):
-    hub_description ="This item is part of a UDOT ArcGIS Hub site. If you have questions about this item or it's associated Hub Site please contact Alex Gilvarry at agilvarry@utah.gov"
-    hub_snippet = "This item is part of a UDOT ArcGIS Hub site."
-    hub_thumbnail = 'https://maps.udot.utah.gov/uplan_data/documents/hub/HubSites.png'
-    newtags =[]
-    for tag in tags:
-        if tag != 'deficient_metadata':
-            newtags.append(tag)
-    if 'Hub Site' not in newtags:        
-        newtags.append('Hub Site')
-    try:
-        item.update(item_properties={'description':hub_description, 'snippet': hub_snippet,'tags': newtags}, thumbnail=hub_thumbnail)     
-    except:
-        print("Hub Info Update failed")
-        print(item)
 
 def add_to_deficient_list(item):
     item_owner = item['owner']
@@ -284,15 +267,10 @@ for item in portal_items:
     timeSinceUpdate = round((time_now - modified_time) / (60*60*24))
     created_time = item['created']/1000
     age = round((time_now - created_time) / (60*60*24))
-    if age == 0: #was created today, set to 1 to avoid division by 0
-        age = 1
- 
-    
-    hub_types = ['Hub Initiative', 'Hub Page', 'Hub Site Application']
+   
     owner = item['owner']
     item_type = item['type']
            
-
     #TODO: Check orphan geodatabase, check whitelist content to email alex
 
     if item['type'] == 'File Geodatabase' or item['type'] == 'Code Attachment': 
@@ -319,31 +297,20 @@ for item in portal_items:
     if item['thumbnail']: #TODO: if not, append default thumbnail
         thumbnail = True  
     if not item['licenseInfo']: #TODO: check if license info is exact
-        #print("missing License Info")
         add_portal_licenseInfo(item)
 
-    if length_description < 10 or length_tags == 0 or length_summary < 10 or int(description_summary_similarity) == 100 or not thumbnail:
-        if item_type in hub_types:
-            add_portal_licenseInfo(item)  
-            hub_data(item, tags)
-        elif item_type == 'SQLite Geodatabase':
+    if length_description < 10 or length_tags == 0 or length_summary < 10 or int(description_summary_similarity) == 100 or not thumbnail:          
+        if item_type == 'SQLite Geodatabase':
             add_portal_licenseInfo(item)  
             sqlite_data(item, tags)
         elif item_type == 'Tile Package':
             add_portal_licenseInfo(item)    
             tile_pagckage(item, tags)
         elif 'deficient_metadata' in tags: 
-            #item was already tagged as deficient, make item private
-            #print("adding to list")
-            #item.update(item_properties={'access':'private'}) 
             add_to_deficient_list(item)
         else:
-            #first check, item is deficient, mark as such and add to email list
-            #print("add deficient")
             add_deficient_metadata(item,tags) 
     elif 'deficient_metadata' in tags: 
-        #item tagged as deficient but that has been fixed
-        # print("remove deficient")
         remove_deficient(item, tags)
 
 #----- User Checks -----#
@@ -353,8 +320,6 @@ for user in disabled_users:
     print("deleteing user", user)
     print(user)
     user.delete(reassign_to="agilvarry@utah.gov") #TODO: create folder for user with user name?
-
-
 
 for user in inactive_users:
     print("deleteing user", user)
