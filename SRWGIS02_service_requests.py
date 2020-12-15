@@ -18,8 +18,8 @@ def main(argv=None):
     # Print some info
     #   
     # Ask for admin/publisher user name and password
-    username = "agilvarry" # raw_input("Enter user name: ")
-    password = "P7ncilstick!" # getpass.getpass("Enter password: ") 
+    username = raw_input("Enter user name: ")
+    password = getpass.getpass("Enter password: ") 
     
     # Ask for server name
     serverName = "srwgis02.utah.utad.state.ut.us"
@@ -28,7 +28,7 @@ def main(argv=None):
     # Ask for FromTime
     fromTime = 0
     while fromTime == 0:
-        fromTime = "2019-01-01 12:00"  # raw_input("Start date and time of report in YYYY-MM-DD HH:MM format (e.g. 2014-05-10 14:00): ")
+        fromTime = raw_input("Start date and time of report in YYYY-MM-DD HH:MM format (e.g. 2014-05-10 14:00): ")
         # Convert input to Python struct_time and then to Unix timestamp in ms
         try: fromTime = int(time.mktime(time.strptime(fromTime, '%Y-%m-%d %H:%M'))*1000) 
         except:
@@ -38,7 +38,7 @@ def main(argv=None):
     # Ask for ToTime
     toTime = 0
     while toTime == 0:
-        toTime = "2020-01-01 12:00" # raw_input("End date and time of report in YYYY-MM-DD HH:MM format (e.g. 2014-05-10 14:00): ")
+        toTime = raw_input("End date and time of report in YYYY-MM-DD HH:MM format (e.g. 2014-05-10 14:00): ")
         # Convert input to Python struct_time and then to Unix timestamp in ms
         try: toTime = int(time.mktime(time.strptime(toTime, '%Y-%m-%d %H:%M'))*1000)
         except: 

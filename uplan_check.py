@@ -40,14 +40,17 @@ email_service = {
     'smtp_password': None
   }
 
-whitelist_users = ['cbraceras@utah.gov_uplan','tnewell@utah.gov_uplan', 'jasondavis@utah.gov_uplan', 'eweight@utah.gov_uplan',
+whitelist_users = ['cbraceras@utah.gov_uplan', 'aradel@utah.gov', 'tnewell@utah.gov_uplan', 'jasondavis@utah.gov_uplan', 'eweight@utah.gov_uplan',
                    'lhull@utah.gov_uplan', 'bbradshaw@utah.gov_uplan', 'nlee@utah.gov_uplan', 'bbmaughan@utah.gov_uplan',
                    'krispeterson@utah.gov_uplan', 'rwight@utah.gov_uplan', 'bryanadams@utah.gov_uplan', 'robertclayton@utah.gov_uplan',
-                   'rtorgerson@utah.gov_uplan'] 
+                   'rtorgerson@utah.gov_uplan','rwallis@utah.gov_uplan', 'rbaltazar@utah.gov_uplan','mbradshaw@utah.gov_uplan',
+                   'smulahalilovic@utah.gov_uplan'] 
 smtp = smtplib.SMTP(email_service['smtp_server'])
 
 ##----- Authorization and Checks -----##
-uplan = GIS("https://uplan.maps.arcgis.com", client_id='6mLS33NCUtLYkcyd')
+#uplan = GIS("https://uplan.maps.arcgis.com", client_id='6mLS33NCUtLYkcyd')
+uplan = GIS("https://uplan.maps.arcgis.com", "ScriptAdmin", "ScriptAdmin12345!")
+
 uplan_users = uplan.users.search(sort_field='username', sort_order='asc', max_users=100000, outside_org=True)
 me = uplan.users.me
 
@@ -66,6 +69,15 @@ if not archive_folder:
   sys.exit()         
 
 ##-------- User Functions --------##
+
+def get_usage(item):
+    use_data = item.usage(date_range='1Y', as_df='True')
+
+    useage = 0
+    for index, row in use_data.iterrows():
+        useage += row['Usage']
+    return useage
+
 def compile_list_of_unused_enabled_users(uplan_users):
     threshold_age = 396
     filtered_users = []
@@ -212,7 +224,8 @@ def add_unpopular(item, tags):
 
 def archive_item(item, tags):
     try:
-        tags.append('archive')
+        tags.append('unused_archive')
+        tags.append(item['owner'])
         item.update(item_properties={'access':'private', 'tags' : tags}) 
         item.reassign_to(target_owner='agilvarry@utah.gov_uplan', target_folder='Archive')
         item.share(everyone=False, org=False, groups=None, allow_members_to_edit=False)
@@ -256,23 +269,6 @@ def sqlite_data(item, tags):
         print("SQLite Geodatabase Info Update failed")
         print(item)            
     
-    
-def hub_data(item, tags):
-    hub_description ="This item is part of a UDOT ArcGIS Hub site. If you have questions about this item or it's associated Hub Site please contact Alex Gilvarry at agilvarry@utah.gov"
-    hub_snippet = "This item is part of a UDOT ArcGIS Hub site."
-    hub_thumbnail = 'https://maps.udot.utah.gov/uplan_data/documents/hub/HubSites.png'
-    newtags =[]
-    for tag in tags:
-        if tag != 'deficient_metadata':
-            newtags.append(tag)
-    if 'Hub Site' not in newtags:        
-        newtags.append('Hub Site')
-    try:
-        item.update(item_properties={'description':hub_description, 'snippet': hub_snippet,'tags': newtags}, thumbnail=hub_thumbnail)     
-    except:
-        print("Hub Info Update failed")
-        print(item)
-
 def add_to_deficient_list(item):
     item_owner = item['owner'][:-6] # substring to remove '_uplan' from owner name
     item_id = item['id']        
@@ -304,7 +300,7 @@ def delete_archive(item):
 get_email_login()
 set_email_template()
 print("Getting uplan Items...")
-uplan_items = uplan.content.search(query="", sort_field="title", sort_order="asc", max_items = 100000)
+uplan_items = uplan.content.search(query="", sort_field="title", sort_order="asc", max_items = 10000)
 deficient_content = defaultdict(list)
 print("testing....")
 
@@ -315,50 +311,40 @@ for item in uplan_items:
     timeSinceUpdate = round((time_now - modified_time) / (60*60*24))
     created_time = item['created']/1000
     age = round((time_now - created_time) / (60*60*24))
+    use_threshold = 0
     if age == 0: #was created today, set to 1 to avoid division by 0
         age = 1
     numViews = item['numViews']
     popularity = numViews / age
-    hub_types = ['Hub Initiative', 'Hub Page', 'Hub Site Application']
+    
     owner = item['owner']
     item_type = item['type']
-    hub_owners =['agilvarry@utah.gov_uplan', 'pdamron@utah.gov_uplan', 'mshah@utah.gov_uplan']
-    # if 'archive' in tags and timeSinceUpdate > 420:
-    #     delete_archive(item)   
-    #     continue
-
-    #if item_type in hub_types and owner not in hub_owners:
-    #    try:
-    #        item.reassign_to(target_owner='agilvarry@utah.gov_uplan', target_folder='Hub')
-    #    except:
-    #        print("couldn't reassign hub item")
-    #        print(item)
-        
-
+    
     #TODO: Check orphan geodatabase, check whitelist content to email alex
 
     if 'whitelist' in tags or item['owner'] in whitelist_users or 'archive' in tags or item['type'] == 'File Geodatabase' or item['type'] == 'Code Attachment': 
         #the item is on whitelist or private or archived or is a supporting geodatabase, skip this item
         continue     
     
-    
+    # if 'unused_archive' in tags and timeSinceUpdate > 420:
+    #     delete_archive(item)   
+    #     continue
 
-    # if popularity < uplan_popularity_threshold and age > uplan_age_threshold:
-    #     #popularity is low and item older than age threshold
-    #     if 'unpopular' in tags:
-    #         #previously tagged unpopular - unshare and move to archive folder if previously tagged as unpopular 
+    # if age > 365:
+    #     item_use = get_usage(item)    
+    #     if 'unpopular' in tags and item_use == use_threshold:
+    #         #previously tagged unpopular - unshare and move to archive folder
     #         print("archive item")
-    #        # archive_item(item, tags)
-    #     else: #tag as upopular
-    #         print("add unpopular")
-    #         #add_unpopular(item, tags)
-    #     continue       
-
-    # elif 'unpopular' in tags: 
-    #     #popularity is above threshold, but it was previously tagged as unpopular
-    #     #print("remove unpopular")
-    #     remove_unpopular(item, tags)
-    #     continue    
+    #         archive_item(item, tags)
+    #         continue
+    #     elif 'unpopular' not in tags and item_use == use_threshold:
+    #         #not tagged unpopular but below use threshold
+    #         add_unpopular(item, tags)  
+    #         continue    
+    #     elif 'unpopular' in tags and item_use > use_threshold: 
+    #         #use is above threshold, but it was previously tagged as unpopular
+    #         remove_unpopular(item, tags)
+    #         continue
 
     #---- Check Metadata ----#
 
@@ -385,10 +371,8 @@ for item in uplan_items:
         add_uplan_licenseInfo(item)
 
     if length_description < 10 or length_tags == 0 or length_summary < 10 or int(description_summary_similarity) == 100 or not thumbnail:
-        if item_type in hub_types:
-            add_uplan_licenseInfo(item)  
-            hub_data(item, tags)
-        elif item_type == 'SQLite Geodatabase':
+
+        if item_type == 'SQLite Geodatabase':
             add_uplan_licenseInfo(item)  
             sqlite_data(item, tags)
         elif item_type == 'Tile Package':
@@ -411,11 +395,27 @@ for item in uplan_items:
 #----- User Checks -----#
 disabled_users = compile_list_of_unused_disabled_users(uplan_users)
 inactive_users = compile_list_of_unused_enabled_users(uplan_users)
+
+#gets a list of users with a pro license and removes it from users about to be deleted.
+disabled_usernames = [user['username'] for user in disabled_users]
+pro_lic = uplan.admin.license.get('ArcGIS Pro')
+pro_users = pro_lic.all()
+for user in pro_users:
+    user_name = user['username']
+    if user_name in disabled_usernames:
+        try: 
+            pro_lic.revoke(username=user_name,entitlements='*')
+            print("removing Pro license: "+user_name)
+        except:
+            pass
+
 for user in disabled_users:
     print("deleteing user", user)
     print(user)
-    user.delete(reassign_to="agilvarry@utah.gov_uplan") #TODO: create folder for user with user name?
-
+    try:
+        user.delete(reassign_to="agilvarry@utah.gov_uplan") #TODO: create folder for user with user name?
+    except:
+        print("couldn't delete" + user)
 
 
 for user in inactive_users:
